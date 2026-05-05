@@ -20,7 +20,30 @@ Connexion directe avec [CloudSec Audit Toolkit](https://github.com/RyanRoy23/clo
 Chaque gap est traduit en impact financier estimé (méthode ALE) basé sur des données publiques : IBM Cost of a Data Breach, rapports ANSSI, barème des sanctions NIS 2 (Art. 34). Le rapport indique l'exposition annuelle et la valeur des quick wins en euros.
 
 ---
+## Quick Start (procédure complète)
 
+Pour relancer l'outil après une première installation :
+
+```powershell
+# 1. Activer l'environnement virtuel Python
+.\venv\Scripts\Activate.ps1
+
+# 2. Lancer la démo simple
+python -m nis2_analyzer --demo
+
+# 3. Lancer la démo complète avec rapport HTML
+python -m nis2_analyzer --demo --bridge tests/mock_data/cloudsec_report.json --report reports/rapport.html --size eti --sector industrie --revenue 50000000
+
+# 4. Ouvrir le rapport HTML généré
+start reports\rapport.html
+```
+
+**Note Windows** : si l'activation du venv échoue, exécuter d'abord :
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
+---
 ## Démonstration rapide
 
 ```bash
