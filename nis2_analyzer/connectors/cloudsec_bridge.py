@@ -20,6 +20,15 @@ Architecture :
 - CloudSecBridge : classe qui orchestre l'import et la traduction
 - EvidenceItem : structure qui stocke une preuve technique
 """
+# Importation de ton nouveau module
+from nis2_analyzer.core.auth import AzureAuthManager
+
+class CloudSecBridge:
+    def __init__(self):
+        # Initialisation de l'identité lors de la création du bridge
+        self.auth = AzureAuthManager()
+        self.cloudsec_data: dict = {}
+        # ... reste de ton code ...
 
 import json
 import os
