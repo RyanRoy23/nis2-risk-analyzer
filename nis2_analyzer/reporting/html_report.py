@@ -526,7 +526,93 @@ def generate_report(
             color: var(--text-muted);
             margin-top: 4px;
         }}
+        /* ── PERIMETER (Périmètre d'évaluation) ── */
+        .perimeter-intro {{
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+        }}
         
+        .perimeter-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }}
+        
+        .perimeter-card {{
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        
+        .perimeter-card.proven {{
+            border-color: var(--green)40;
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--green-dim)20 100%);
+        }}
+        
+        .perimeter-card.declared {{
+            border-color: var(--orange)40;
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--orange-dim)20 100%);
+        }}
+        
+        .perimeter-card.uncovered {{
+            border-color: var(--red)40;
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--red-dim)20 100%);
+        }}
+        
+        .perimeter-badge {{
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }}
+        
+        .perimeter-card.proven .perimeter-badge {{ color: var(--green); }}
+        .perimeter-card.declared .perimeter-badge {{ color: var(--orange); }}
+        .perimeter-card.uncovered .perimeter-badge {{ color: var(--red); }}
+        
+        .perimeter-count {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1;
+        }}
+        
+        .perimeter-card.proven .perimeter-count {{ color: var(--green); }}
+        .perimeter-card.declared .perimeter-count {{ color: var(--orange); }}
+        .perimeter-card.uncovered .perimeter-count {{ color: var(--red); }}
+        
+        .perimeter-desc {{
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }}
+        
+        .perimeter-desc em {{
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 11px;
+        }}
+        
+        .perimeter-warning {{
+            padding: 14px 18px;
+            background: var(--orange-dim);
+            border: 1px solid var(--orange)40;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--orange);
+            line-height: 1.6;
+        }}
+
         @media print {{
             body {{ background: #fff; color: #1a1a1a; }}
             .score-card, .domain-row, .gap-table td, .financial-card, 
@@ -568,7 +654,58 @@ def generate_report(
             </div>
         </div>
 """
-
+# ── SECTION : Périmètre de l'évaluation ──
+    if has_bridge:
+        proven = bridge_summary.get("auto_filled", 0)
+        declared = total_reqs - proven
+    else:
+        proven = 0
+        declared = total_reqs
+    
+    html += f"""
+        <div class="section">
+            <div class="section-title">
+                <div class="icon">⊙</div>
+                Périmètre de l'évaluation
+            </div>
+            <div class="perimeter-intro">
+                Ce score reflète des données collectées de trois manières différentes. 
+                Comprendre la nature de chaque évaluation est essentiel pour interpréter le résultat.
+            </div>
+            <div class="perimeter-grid">
+                <div class="perimeter-card proven">
+                    <div class="perimeter-badge">🟢 Prouvé</div>
+                    <div class="perimeter-count">{proven}/{total_reqs}</div>
+                    <div class="perimeter-desc">
+                        Données collectées par audit technique automatisé.
+                        <br><em>Source : CloudSec Audit Toolkit / MS Graph API</em>
+                    </div>
+                </div>
+                <div class="perimeter-card declared">
+                    <div class="perimeter-badge">🟡 Déclaré</div>
+                    <div class="perimeter-count">{declared}/{total_reqs}</div>
+                    <div class="perimeter-desc">
+                        Données issues du questionnaire rempli par l'organisation.
+                        <br><em>À valider par audit documentaire complémentaire.</em>
+                    </div>
+                </div>
+                <div class="perimeter-card uncovered">
+                    <div class="perimeter-badge">🔴 Non couvert</div>
+                    <div class="perimeter-count">—</div>
+                    <div class="perimeter-desc">
+                        Zones organisationnelles non évaluées par cet outil :
+                        gestion de crise réelle, engagement effectif de la direction,
+                        efficacité de la formation. Audit externe requis.
+                    </div>
+                </div>
+            </div>
+            <div class="perimeter-warning">
+                ⚠ Ce rapport ne se substitue pas à un audit professionnel NIS 2. 
+                Il identifie les zones de risque connues et documente honnêtement 
+                ce qui n'a pas été évalué.
+            </div>
+        </div>
+"""
     # ── SECTION : Scores par domaine ──
     html += """
         <div class="section">
