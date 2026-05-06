@@ -1,23 +1,27 @@
 # NIS 2 Risk Analyzer
+Évaluation de conformité NIS 2 Article 21 avec quantification du risque financier et **transparence méthodologique** sur le périmètre d'évaluation.
 
-**Évaluation de conformité NIS 2 Article 21 connectée à un audit technique réel, avec quantification du risque financier.**
+La majorité des outils d'évaluation NIS 2 demandent "avez-vous déployé le MFA ?" et l'utilisateur coche "oui". Personne ne vérifie, et personne ne dit ce qui n'a pas été évalué.
 
-Les outils d'évaluation NIS 2 existants demandent "avez-vous déployé le MFA ?" et l'utilisateur coche "oui". Personne ne vérifie. Cet outil fait la différence entre déclarer et prouver.
+Cet outil propose une approche différente : il distingue explicitement, dans chaque rapport, ce qui est **prouvé** par audit technique, ce qui est **déclaré** par questionnaire, et ce qui n'est **pas couvert** par l'outil et nécessite une vérification externe. L'objectif n'est pas de remplacer un audit professionnel NIS 2, mais d'identifier honnêtement les zones de risque connues sans créer de faux sentiment de complétude.
 
 ---
 
 ## Ce que fait l'outil
 
-NIS 2 Risk Analyzer évalue la conformité d'une organisation aux 10 mesures de l'Article 21 de la Directive NIS 2 (UE 2022/2555) en combinant trois approches :
+NIS 2 Risk Analyzer évalue la conformité d'une organisation aux 10 mesures de l'Article 21 de la Directive NIS 2 (UE 2022/2555) en combinant **quatre couches** :
 
 **1. Évaluation de conformité structurée**
 31 questions couvrant les 10 domaines de l'Article 21, avec scoring pondéré (A-F), identification des gaps, plan de remédiation priorisé, et mapping vers 41 contrôles ISO 27001:2022 Annex A.
 
 **2. Bridge technique — CloudSec Audit Toolkit**
-Connexion directe avec [CloudSec Audit Toolkit](https://github.com/RyanRoy23/cloudsec-audit-toolkit) pour importer les résultats d'un audit Azure/Entra ID (20 contrôles via MS Graph API). Les réponses techniques sont pré-remplies automatiquement avec des preuves — pas des déclarations.
+Connexion optionnelle avec le CloudSec Audit Toolkit pour importer les résultats d'un audit Azure/Entra ID (20 contrôles via MS Graph API). Les réponses techniques disponibles sont pré-remplies automatiquement avec des preuves — pas des déclarations. Pour les organisations non-Azure ou les actifs non connectés, la collecte reste manuelle.
 
-**3. Quantification du risque financier**
-Chaque gap est traduit en impact financier estimé (méthode ALE) basé sur des données publiques : IBM Cost of a Data Breach, rapports ANSSI, barème des sanctions NIS 2 (Art. 34). Le rapport indique l'exposition annuelle et la valeur des quick wins en euros.
+**3. Périmètre d'évaluation explicite**
+Chaque rapport distingue visuellement les mesures **prouvées** par audit technique, **déclarées** par questionnaire, et **non couvertes** par l'outil. L'objectif est d'éviter le faux sentiment de complétude qui caractérise la plupart des outils GRC : un score NIS 2 partiel mais transparent vaut mieux qu'un score apparemment complet mais aveugle aux zones non évaluées.
+
+**4. Quantification du risque financier**
+Chaque gap est traduit en impact financier estimé selon la méthode ALE (Annualized Loss Expectancy), basée sur des données publiques : IBM Cost of a Data Breach 2024, Panorama de la cybermenace ANSSI, rapports Coveware, barème des sanctions NIS 2 (Article 34). Le rapport indique l'exposition annuelle estimée et la valeur des quick wins en euros.
 
 ---
 ## Quick Start (procédure complète)
@@ -236,9 +240,10 @@ Chaque gap est relié à des scénarios d'incident avec un coût estimé.
 
 ## Rapport HTML
 
-Le rapport HTML unifié consolide les trois couches en un seul document autonome (aucune dépendance externe requise pour l'ouverture) :
+Le rapport HTML unifié consolide les quatre couches en un seul document autonome (aucune dépendance externe requise pour l'ouverture) :
 
 - Score global + grade (A-F)
+- **Périmètre d'évaluation : distinction visuelle prouvé / déclaré / non couvert**
 - Scores par domaine avec barres de progression
 - Bridge CloudSec : questions pré-remplies et constats techniques
 - Exposition financière : hypothèses basse/moyenne/haute, amende NIS 2
@@ -250,23 +255,54 @@ Le rapport HTML unifié consolide les trois couches en un seul document autonome
 
 ## Roadmap
 
-- [ ] Élargissement du bridge (40+ checks Azure)
-- [ ] Connecteur AWS (boto3 + AWS Config)
-- [ ] Modèle financier Monte Carlo (distributions FAIR)
-- [ ] Webapp avec persistance (Flask/FastAPI + React)
-- [ ] Suivi temporel (comparaison d'évaluations successives)
-- [ ] Multi-framework (DORA, RGPD, référentiel ANSSI)
-- [ ] Dossier de preuves structuré pour audit
-- [ ] Benchmark sectoriel anonymisé
+### Récemment livré
+- Section "Périmètre d'évaluation" dans le rapport HTML : distinction visuelle prouvé/déclaré/non couvert
+
+### En cours (priorité 1)
+- Couverture étendue des dimensions organisationnelles : gouvernance, gestion de crise, supervision des fournisseurs, sensibilisation et formation
+- Documentation détaillée du compte de service Azure (permissions minimales, durcissement, audit)
+- Quantification financière étendue aux gaps organisationnels
+
+### Court terme (3-6 mois)
+- Persistance locale des évaluations (JSON ou SQLite) pour reprise et historisation
+- Élargissement du bridge CloudSec (40+ checks Azure)
+- Multi-framework : mapping vers DORA et le référentiel ANSSI
+- Dossier de preuves structuré exportable pour audit externe
+
+### Moyen terme (6-12 mois)
+- Connecteur AWS (boto3 + AWS Config)
+- Webapp avec interface graphique (Flask ou FastAPI + frontend léger)
+- Suivi temporel : comparaison d'évaluations successives, courbes de progression
+- Modèle financier Monte Carlo (distributions FAIR)
+
+### Long terme
+- Benchmark sectoriel anonymisé
+- Connecteurs additionnels (GCP, on-premise AD, EDR, SIEM)
+- Mode collaboratif multi-utilisateurs avec rôles (RSSI, DPO, auditeur)
 
 ---
 
 ## Limitations
 
-- Le bridge technique ne couvre actuellement qu'Azure/Entra ID
-- La quantification financière est une estimation indicative (ALE linéaire), pas un modèle actuariel
-- L'outil ne se substitue pas à un audit professionnel ni à un avis juridique
-- Les probabilités d'incidents sont des ordres de grandeur basés sur des statistiques publiques
+L'outil est un prototype démonstratif, pas un produit industriel. Les limites suivantes sont assumées et explicites :
+
+**Périmètre technique partiel**
+Le bridge technique ne couvre actuellement qu'Azure/Entra ID. Les environnements AWS, GCP, on-premise ou OT/ICS ne sont pas évalués automatiquement et restent en mode déclaratif via questionnaire.
+
+**Couverture organisationnelle limitée**
+NIS 2 est à environ 60-70% un cadre organisationnel : qualité de la gouvernance, engagement effectif de la direction, gestion de crise, supervision des fournisseurs, formation et sensibilisation. Ces dimensions sont actuellement évaluées par questionnaire déclaratif uniquement, sans mécanisme de validation. La transparence du rapport (section "Périmètre d'évaluation") signale explicitement ces zones, mais elles nécessitent un audit externe pour être réellement vérifiées.
+
+**Risque du compte de service Azure**
+Le bridge CloudSec nécessite un compte Azure avec des permissions de lecture (Global Reader, Security Reader). Ce compte devient une cible potentielle s'il est compromis. La documentation détaille les permissions minimales à accorder et les bonnes pratiques de protection (Conditional Access, MFA, audit du compte). L'outil ne dispose d'aucune permission d'écriture.
+
+**Quantification financière indicative**
+La méthode ALE (Annualized Loss Expectancy) utilisée est linéaire et basée sur des données publiques agrégées. Ce n'est pas un modèle actuariel comme FAIR ou ISO 27005 quantitative. Les fourchettes basse/moyenne/haute structurent la décision, elles ne la remplacent pas.
+
+**Pas de substitution à un audit professionnel**
+L'outil ne remplace ni un audit NIS 2 mené par un cabinet qualifié, ni un avis juridique sur la conformité. Il fournit une auto-évaluation outillée et un dossier de préparation pour un audit externe.
+
+**Données non persistées**
+Cette version (v1.0) ne stocke pas les évaluations entre les sessions. Chaque évaluation produit un rapport ponctuel. La persistance et l'historisation sont prévues dans la roadmap.
 
 ---
 
