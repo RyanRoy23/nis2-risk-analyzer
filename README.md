@@ -302,7 +302,7 @@ NIS 2 est à environ 60-70% un cadre organisationnel : qualité de la gouvernanc
 Le mapping DORA ne constitue pas une évaluation DORA complète. Trois exigences DORA spécifiques ne sont pas couvertes par l'outil : le TLPT (Threat-Led Penetration Testing, article 26), le registre d'information des prestataires TIC (article 28(3)), et le partage d'information sur les cybermenaces (article 45). Une évaluation DORA complète nécessite un référentiel dédié et un audit complémentaire, en particulier pour les entités financières significatives soumises au régime de supervision directe.
 
 **Risque du compte de service Azure**
-Le bridge CloudSec nécessite un compte Azure avec des permissions de lecture (Global Reader, Security Reader). Ce compte devient une cible potentielle s'il est compromis. La documentation détaille les permissions minimales à accorder et les bonnes pratiques de protection (Conditional Access, MFA, audit du compte). L'outil ne dispose d'aucune permission d'écriture.
+Le bridge CloudSec nécessite un compte Azure avec des permissions de lecture (Global Reader, Security Reader). Ce compte devient une cible potentielle s'il est compromis. La [documentation dédiée](docs/azure-service-account.md) détaille les permissions minimales à accorder, la procédure de création sécurisée, le durcissement par Conditional Access, la gestion du secret et les bonnes pratiques d'audit. L'outil ne dispose d'aucune permission d'écriture.
 
 **Quantification financière indicative**
 La méthode ALE (Annualized Loss Expectancy) utilisée est linéaire et basée sur des données publiques agrégées. Ce n'est pas un modèle actuariel comme FAIR ou ISO 27005 quantitative. Les fourchettes basse/moyenne/haute structurent la décision, elles ne la remplacent pas.
