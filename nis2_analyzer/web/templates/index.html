@@ -188,7 +188,21 @@
       <h2>Évaluation de conformité NIS 2</h2>
       <p>Répondez aux questions ci-dessous en évaluant votre niveau de maturité de 0 (non implémenté) à 3 (optimisé).</p>
     </div>
-    <input class="org-input" id="org-name" type="text" placeholder="Nom de l'organisation (ex: TT Corporation)" maxlength="200">
+    <div style="display:flex;gap:0.8rem;margin-bottom:1rem;align-items:center;">
+      <input class="org-input" id="org-name" type="text" placeholder="Nom de l'organisation (ex: TT Corporation)" maxlength="200" style="margin-bottom:0;flex:1;">
+      <select id="sector-select" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.6rem 0.8rem;border-radius:var(--radius);font-size:0.85rem;flex-shrink:0;">
+        <option value="autre">Secteur NIS 2…</option>
+        <option value="sante">Santé</option>
+        <option value="finance">Finance & Assurance</option>
+        <option value="energie">Énergie</option>
+        <option value="transport">Transport & Logistique</option>
+        <option value="numerique">Numérique & Télécom</option>
+        <option value="industrie">Industrie & Fabrication</option>
+        <option value="administration">Administration publique</option>
+        <option value="autre">Autre secteur</option>
+      </select>
+    </div>
+    <div id="sector-context-bar" style="display:none;background:#1a2035;border:1px solid #2d3a5a;padding:0.6rem 1rem;border-radius:var(--radius);margin-bottom:1rem;font-size:0.82rem;color:#93c5fd;"></div>
     <div id="framework-container"><p style="color:var(--muted)">Chargement du questionnaire…</p></div>
     <div class="submit-row">
       <button class="btn" id="submit-btn" onclick="submitAssessment()" disabled>Lancer l'évaluation</button>
@@ -397,7 +411,7 @@
       const res = await fetch('/api/assess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ org_name: orgName, responses }),
+        body: JSON.stringify({ org_name: orgName, responses, sector: document.getElementById('sector-select').value }),
       });
 
       if (!res.ok) {
@@ -479,6 +493,60 @@
         <div class="domain-results">${domainRows}</div>
       </section>
       ${gapItems ? `<section><h3>Principaux gaps à traiter</h3><div class="gaps-list">${gapItems}</div></section>` : ''}
+      ${renderSectorReport(data.sector_report)}
+    `;
+  }
+
+  function renderSectorReport(sr) {
+    if (!sr || !sr.sector) return '';
+    const { sector, key_threats, priority_gaps, priority_requirements, specific_controls, sector_alert } = sr;
+    const alertColor = priority_gaps.length > 0 ? 'var(--red)' : 'var(--green)';
+    const alertIcon = priority_gaps.length > 0 ? '⚠️' : '✅';
+
+    const threatsHtml = key_threats.map(t => `<li style="margin-bottom:0.2rem;color:#d1d5db;font-size:0.83rem;">${esc(t)}</li>`).join('');
+    const gapBadges = priority_gaps.length > 0
+      ? priority_gaps.map(id => `<span style="background:#3d1515;color:#fca5a5;border:1px solid #7f1d1d;border-radius:4px;padding:2px 7px;font-size:0.73rem;font-family:monospace;">${id}</span>`).join(' ')
+      : `<span style="color:var(--green);font-size:0.83rem;">Aucun gap sur les exigences prioritaires</span>`;
+
+    const controlsHtml = specific_controls.length > 0
+      ? specific_controls.map(c => {
+          const pColor = c.priority === 'CRITIQUE' ? '#fca5a5' : c.priority === 'HAUTE' ? '#fbbf24' : '#93c5fd';
+          return `<div style="padding:0.5rem 0.8rem;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.15rem;">
+              <span style="font-size:0.7rem;color:${pColor};font-weight:600;background:#0d1424;padding:1px 5px;border-radius:3px;">${esc(c.priority)}</span>
+              <strong style="font-size:0.83rem;">${esc(c.title)}</strong>
+              <span style="margin-left:auto;font-size:0.7rem;color:var(--muted);font-family:monospace;">${esc(c.requirement_id)}</span>
+            </div>
+            <div style="font-size:0.8rem;color:var(--muted);">${esc(c.description)}</div>
+          </div>`;
+        }).join('')
+      : '<div style="padding:0.5rem 0.8rem;color:var(--muted);font-size:0.83rem;">Pas de contrôles spécifiques supplémentaires.</div>';
+
+    return `
+      <section>
+        <h3>Analyse sectorielle — ${esc(sector.label)}</h3>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:0.8rem;">
+          <div style="padding:0.75rem 1rem;background:#161D2E;display:flex;align-items:center;gap:0.6rem;">
+            <span style="font-size:1rem;">${alertIcon}</span>
+            <span style="font-weight:600;color:${alertColor};font-size:0.88rem;">${esc(sector_alert)}</span>
+          </div>
+          <div style="padding:0.75rem 1rem;font-size:0.82rem;color:#9ca3af;border-top:1px solid var(--border);">${esc(sector.regulatory_context)}</div>
+          <div style="padding:0.6rem 1rem;border-top:1px solid var(--border);">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.05em;">Gaps sur exigences prioritaires</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.3rem;">${gapBadges}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;">
+            <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.05em;">Principales menaces sectorielles</div>
+            <ul style="list-style:none;padding:0;">${threatsHtml}</ul>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="padding:0.75rem 1rem;font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Contrôles sectoriels recommandés</div>
+            ${controlsHtml}
+          </div>
+        </div>
+      </section>
     `;
   }
 
@@ -829,8 +897,39 @@
     document.getElementById('aws-results').style.display = 'block';
   }
 
+  // ── Contexte sectoriel ───────────────────────────────────────────────────
+  let _sectorProfiles = null;
+
+  async function loadSectorProfiles() {
+    try {
+      const res = await fetch('/api/sector-profiles');
+      _sectorProfiles = (await res.json()).sectors;
+    } catch (e) { /* silencieux */ }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('sector-select');
+    if (sel) {
+      sel.addEventListener('change', () => {
+        const bar = document.getElementById('sector-context-bar');
+        if (!_sectorProfiles || sel.value === 'autre') {
+          bar.style.display = 'none';
+          return;
+        }
+        const profile = _sectorProfiles.find(p => p.id === sel.value);
+        if (profile) {
+          bar.style.display = 'block';
+          bar.innerHTML = `<strong>${profile.label}</strong> — ${profile.priority_requirements_count} exigences prioritaires · ${profile.specific_controls_count} contrôles sectoriels · ${profile.key_threats[0]}…`;
+        } else {
+          bar.style.display = 'none';
+        }
+      });
+    }
+  });
+
   // ── Init ──────────────────────────────────────────────────────────────────
   loadFramework();
+  loadSectorProfiles();
 </script>
 </body>
 </html>

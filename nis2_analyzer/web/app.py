@@ -50,6 +50,9 @@ from nis2_analyzer.core.supply_chain import (
 from nis2_analyzer.core.monte_carlo import MonteCarloEngine
 from nis2_analyzer.core.aws_connector import AWSConnector
 from nis2_analyzer.core.financial import OrganizationProfile, OrgSize, Sector
+from nis2_analyzer.core.sector_profiles import (
+    get_sector_profile, apply_sector_weights, get_sector_report, SECTOR_PROFILES
+)
 
 app = FastAPI(
     title="COMPASS",
@@ -75,6 +78,7 @@ class AssessmentRequest(BaseModel):
         ...,
         description="Mapping requirement_id → maturity (0-3)",
     )
+    sector: str = Field("autre", description="Secteur NIS 2 pour pondération sectorielle")
 
 
 class SupplierAssessRequest(BaseModel):
@@ -186,6 +190,26 @@ def get_framework():
                 ],
             }
             for d in domains
+        ]
+    }
+
+
+@app.get("/api/sector-profiles")
+def get_sector_profiles_list():
+    """Retourne la liste des profils sectoriels disponibles."""
+    return {
+        "sectors": [
+            {
+                "id": p.sector_id,
+                "label": p.sector_label,
+                "priority_requirements_count": len(p.priority_requirements),
+                "specific_controls_count": len(p.specific_controls),
+                "regulatory_context": p.regulatory_context,
+                "key_threats": p.key_threats,
+                "priority_requirements": p.priority_requirements,
+                "specific_controls": p.specific_controls,
+            }
+            for p in SECTOR_PROFILES.values()
         ]
     }
 
@@ -370,10 +394,17 @@ def run_assessment(body: AssessmentRequest):
             detail="Aucune réponse valide fournie. Vérifiez les identifiants de requirements."
         )
 
+    # Appliquer les pondérations sectorielles avant le scoring
+    sector_id = body.sector if body.sector in SECTOR_PROFILES else "autre"
+    apply_sector_weights(domains, sector_id)
+
     engine = ScoringEngine()
     analysis = engine.full_analysis(domains, org_name)
     assessment_id = save_assessment(analysis)
     analysis["assessment_id"] = assessment_id
+
+    # Ajouter le rapport sectoriel
+    analysis["sector_report"] = get_sector_report(sector_id, analysis)
 
     return analysis
 
