@@ -177,6 +177,7 @@
   <button onclick="showPage('results')">Résultats</button>
   <button onclick="showPage('monte-carlo')">Risque financier</button>
   <button onclick="showPage('aws-audit')">Audit AWS</button>
+  <button onclick="showPage('sme'); loadSMEQuestions()">Mode PME</button>
   <button onclick="showPage('history'); loadHistory()">Historique</button>
 </nav>
 
@@ -309,6 +310,42 @@
       <!-- Tous les findings -->
       <div id="aws-all-findings"></div>
     </div>
+  </div>
+
+  <!-- ── PAGE : MODE PME ── -->
+  <div id="page-sme" class="page">
+    <div class="form-header">
+      <h2>Mode PME — Diagnostic rapide NIS 2</h2>
+      <p>15 questions en langage courant pour évaluer votre cybersécurité sans expert. Résultat en 5 minutes.</p>
+    </div>
+
+    <div class="mc-banner" style="background:#0f2318;border:1px solid #14532d;padding:0.8rem 1.1rem;border-radius:8px;margin-bottom:1.2rem;font-size:0.83rem;color:#86efac;">
+      💡 Ce questionnaire est conçu pour les dirigeants, DG et responsables IT sans formation en cybersécurité. Répondez en vous basant sur ce qui est réellement en place dans votre entreprise.
+    </div>
+
+    <div style="display:flex;gap:0.8rem;margin-bottom:1.2rem;align-items:center;flex-wrap:wrap;">
+      <input id="sme-org-name" class="org-input" type="text" placeholder="Nom de votre entreprise" maxlength="200" style="margin-bottom:0;flex:1;min-width:200px;">
+      <select id="sme-sector" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.6rem 0.8rem;border-radius:var(--radius);font-size:0.85rem;">
+        <option value="autre">Secteur…</option>
+        <option value="sante">Santé</option>
+        <option value="finance">Finance & Assurance</option>
+        <option value="energie">Énergie</option>
+        <option value="transport">Transport</option>
+        <option value="numerique">Numérique & Télécom</option>
+        <option value="industrie">Industrie</option>
+        <option value="administration">Administration</option>
+      </select>
+    </div>
+
+    <div id="sme-questions-container"><p style="color:var(--muted)">Chargement des questions…</p></div>
+
+    <div class="submit-row" style="margin-top:1.5rem;">
+      <button class="btn" id="sme-submit-btn" onclick="submitSME()" disabled>Obtenir mon diagnostic</button>
+      <button class="btn btn-outline" onclick="fillSMEDemo()">Mode démo</button>
+      <span id="sme-status" style="color:var(--muted);font-size:0.85rem;"></span>
+    </div>
+
+    <div id="sme-results" style="display:none;margin-top:2rem;"></div>
   </div>
 
   <!-- ── PAGE : HISTORIQUE ── -->
@@ -895,6 +932,224 @@
     document.getElementById('aws-all-findings').innerHTML = allHtml;
 
     document.getElementById('aws-results').style.display = 'block';
+  }
+
+  // ── Mode PME ──────────────────────────────────────────────────────────────
+  let _smeQuestions = null;
+
+  async function loadSMEQuestions() {
+    if (_smeQuestions) return;  // déjà chargé
+    try {
+      const res = await fetch('/api/sme/questions');
+      const data = await res.json();
+      _smeQuestions = data.questions;
+      renderSMEForm();
+    } catch (e) {
+      document.getElementById('sme-questions-container').innerHTML =
+        `<p style="color:var(--red)">Erreur chargement : ${e.message}</p>`;
+    }
+  }
+
+  function renderSMEForm() {
+    if (!_smeQuestions) return;
+    let html_ = '';
+    _smeQuestions.forEach((q, idx) => {
+      html_ += `
+        <div class="domain-card" style="margin-bottom:0.8rem;">
+          <div class="domain-header">
+            <span style="font-size:0.95rem;">${esc(q.category)}</span>
+            <span class="domain-weight" style="font-size:0.72rem;">${idx + 1}/15</span>
+          </div>
+          <div style="padding:0.9rem 1rem;">
+            <div style="font-size:0.88rem;color:#e2e8f0;margin-bottom:0.8rem;line-height:1.5;">${esc(q.question)}</div>
+            <div style="font-size:0.76rem;color:#60a5fa;margin-bottom:0.8rem;background:#0d1424;padding:0.4rem 0.7rem;border-radius:4px;">
+              💡 ${esc(q.why_it_matters)}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.3rem;">
+              ${q.levels.map(l => `
+                <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;padding:0.35rem 0.5rem;border-radius:4px;border:1px solid transparent;transition:all .1s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='transparent'">
+                  <input type="radio" name="${q.id}" value="${l.value}" style="margin-top:2px;accent-color:var(--accent);">
+                  <span style="font-size:0.82rem;color:#d1d5db;line-height:1.4;">
+                    <strong style="color:${l.value === 0 ? 'var(--red)' : l.value === 1 ? 'var(--yellow)' : l.value === 2 ? 'var(--accent)' : 'var(--green)'};">${l.value}</strong>
+                    — ${esc(l.label)}
+                  </span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>`;
+    });
+    document.getElementById('sme-questions-container').innerHTML = html_;
+
+    // Activer le bouton dès qu'une réponse est donnée
+    document.querySelectorAll('#sme-questions-container input[type=radio]').forEach(r => {
+      r.addEventListener('change', () => {
+        const answered = document.querySelectorAll('#sme-questions-container input[type=radio]:checked').length;
+        document.getElementById('sme-submit-btn').disabled = answered === 0;
+      });
+    });
+  }
+
+  function fillSMEDemo() {
+    if (!_smeQuestions) { loadSMEQuestions().then(fillSMEDemo); return; }
+    // Réponses démo : mix réaliste d'une PME "moyenne"
+    const demoLevels = [1, 2, 0, 1, 1, 1, 2, 1, 2, 2, 1, 0, 1, 0, 1];
+    _smeQuestions.forEach((q, idx) => {
+      const lvl = demoLevels[idx] ?? 1;
+      const radio = document.querySelector(`input[name="${q.id}"][value="${lvl}"]`);
+      if (radio) radio.checked = true;
+    });
+    document.getElementById('sme-org-name').value = 'PME Démonstration SAS';
+    document.getElementById('sme-sector').value = 'industrie';
+    document.getElementById('sme-submit-btn').disabled = false;
+  }
+
+  async function submitSME() {
+    const orgName = document.getElementById('sme-org-name').value.trim() || 'Mon entreprise';
+    const sector = document.getElementById('sme-sector').value;
+    const responses = {};
+    document.querySelectorAll('#sme-questions-container input[type=radio]:checked').forEach(r => {
+      responses[r.name] = parseInt(r.value);
+    });
+
+    if (Object.keys(responses).length === 0) {
+      document.getElementById('sme-status').textContent = 'Répondez à au moins une question.';
+      return;
+    }
+
+    const btn = document.getElementById('sme-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Calcul…';
+    document.getElementById('sme-status').textContent = '';
+
+    try {
+      const res = await fetch('/api/sme/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_name: orgName, responses, sector, include_nis2_detail: true }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        document.getElementById('sme-status').textContent = 'Erreur : ' + (err.detail || res.statusText);
+        return;
+      }
+      const data = await res.json();
+      renderSMEResults(data);
+    } catch (e) {
+      document.getElementById('sme-status').textContent = 'Erreur : ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Obtenir mon diagnostic';
+    }
+  }
+
+  function renderSMEResults(data) {
+    const sme = data.sme_assessment;
+    const gradeColor = { A:'#10B981', B:'#3B82F6', C:'#F59E0B', D:'#F97316', F:'#EF4444' };
+    const color = gradeColor[sme.grade] || '#6B7280';
+
+    const weakHtml = (sme.weak_points || []).slice(0, 5).map(w => {
+      const lvlColor = w.level === 0 ? 'var(--red)' : 'var(--yellow)';
+      const lvlLabel = w.level === 0 ? '🔴 Non fait' : '🟡 Partiel';
+      return `<div style="padding:0.6rem 0.9rem;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">
+          <span style="font-size:0.75rem;font-weight:600;color:${lvlColor};">${lvlLabel}</span>
+          <strong style="font-size:0.83rem;">${esc(w.category)}</strong>
+        </div>
+        <div style="font-size:0.8rem;color:#d1d5db;margin-bottom:0.2rem;">${esc(w.levels[w.level + 1 <= 3 ? w.level + 1 : 3])}</div>
+        <div style="font-size:0.76rem;color:#fca5a5;">⚠️ ${esc(w.risk)}</div>
+      </div>`;
+    }).join('');
+
+    const strongHtml = (sme.strong_points || []).map(s =>
+      `<div style="font-size:0.8rem;color:var(--green);padding:0.2rem 0;">✅ ${esc(s.category)}</div>`
+    ).join('') || '<div style="color:var(--muted);font-size:0.8rem;">Continuez à progresser — le niveau 3 s\'acquiert avec la régularité.</div>';
+
+    const priorityHtml = sme.top_priority ? `
+      <div style="background:#2d1515;border:1px solid #5c2020;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1rem;">
+        <div style="font-weight:600;color:var(--red);margin-bottom:0.4rem;">🎯 Priorité #1 — Agir en premier</div>
+        <div style="font-size:0.85rem;color:#f1f5f9;margin-bottom:0.3rem;">${esc(sme.top_priority.category)}</div>
+        <div style="font-size:0.8rem;color:#fca5a5;">${esc(sme.top_priority.risk)}</div>
+        <div style="margin-top:0.5rem;font-size:0.8rem;color:#86efac;">→ Prochaine étape : ${esc(sme.top_priority.levels[Math.min(sme.top_priority.level + 1, 3)])}</div>
+      </div>` : '';
+
+    // Score NIS 2 si disponible
+    const nis2Html = data.nis2_detail ? (() => {
+      const ns = data.nis2_detail.scores;
+      const nc = gradeColor[ns.grade] || '#6B7280';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1.1rem;margin-top:1rem;">
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.05em;">Équivalent NIS 2 (calculé automatiquement)</div>
+        <div style="display:flex;align-items:center;gap:1rem;">
+          <div style="font-size:2rem;font-weight:700;color:${nc};">${ns.grade}</div>
+          <div>
+            <div style="font-size:1.1rem;font-weight:600;color:${nc};">${ns.overall_score}%</div>
+            <div style="font-size:0.78rem;color:var(--muted);">${ns.total_gaps} gap(s) NIS 2 identifié(s)</div>
+          </div>
+        </div>
+      </div>`;
+    })() : '';
+
+    document.getElementById('sme-results').style.display = 'block';
+    document.getElementById('sme-results').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.8rem;margin-bottom:1.2rem;">
+        <div class="mc-kpi" style="grid-column:span 1;">
+          <div class="kpi-label">Score PME</div>
+          <div class="kpi-value" style="color:${color}">${sme.score}%</div>
+        </div>
+        <div class="mc-kpi">
+          <div class="kpi-label">Grade</div>
+          <div class="kpi-value" style="color:${color}">${sme.grade}</div>
+        </div>
+        <div class="mc-kpi">
+          <div class="kpi-label">Points critiques</div>
+          <div class="kpi-value" style="color:var(--red)">${sme.n_critical}</div>
+        </div>
+        <div class="mc-kpi">
+          <div class="kpi-label">Optimisé</div>
+          <div class="kpi-value" style="color:var(--green)">${sme.n_optimized}</div>
+        </div>
+      </div>
+
+      ${priorityHtml}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+          <div style="padding:0.7rem 0.9rem;background:#161D2E;font-weight:600;font-size:0.85rem;color:var(--red);">Points à améliorer</div>
+          ${weakHtml || '<div style="padding:0.7rem 0.9rem;color:var(--green);font-size:0.83rem;">Aucun point critique — bravo !</div>'}
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1rem;">
+          <div style="font-weight:600;font-size:0.85rem;color:var(--green);margin-bottom:0.6rem;">Points forts</div>
+          ${strongHtml}
+        </div>
+      </div>
+
+      ${nis2Html}
+
+      <div style="margin-top:1rem;text-align:center;">
+        <button class="btn btn-outline" onclick="showPage('assessment'); document.querySelectorAll('nav button')[0].classList.add('active'); fillFromSME();" style="font-size:0.83rem;">
+          Voir l'évaluation NIS 2 complète →
+        </button>
+      </div>
+    `;
+
+    // Stocker pour usage dans l'évaluation complète
+    if (data.nis2_responses_inferred) {
+      window._smeNis2Responses = data.nis2_responses_inferred;
+    }
+  }
+
+  function fillFromSME() {
+    if (!window._smeNis2Responses || !_framework) return;
+    const responses = window._smeNis2Responses;
+    _framework.domains.forEach(d => {
+      d.requirements.forEach(r => {
+        if (responses[r.id] !== undefined) {
+          const radio = document.querySelector(`input[name="${r.id}"][value="${responses[r.id]}"]`);
+          if (radio) radio.checked = true;
+        }
+      });
+    });
+    document.getElementById('submit-btn').disabled = false;
   }
 
   // ── Contexte sectoriel ───────────────────────────────────────────────────

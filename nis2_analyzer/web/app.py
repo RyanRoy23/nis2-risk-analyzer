@@ -53,6 +53,9 @@ from nis2_analyzer.core.financial import OrganizationProfile, OrgSize, Sector
 from nis2_analyzer.core.sector_profiles import (
     get_sector_profile, apply_sector_weights, get_sector_report, SECTOR_PROFILES
 )
+from nis2_analyzer.core.sme_mode import (
+    get_sme_schema, compute_sme_score, sme_responses_to_nis2, SME_QUESTIONS
+)
 
 app = FastAPI(
     title="COMPASS",
@@ -153,6 +156,13 @@ class MonteCarloRequest(BaseModel):
     n_simulations: int = Field(10_000, ge=1_000, le=50_000)
 
 
+class SMEAssessRequest(BaseModel):
+    org_name: str = Field("Mon entreprise", min_length=1, max_length=200)
+    responses: dict[str, int] = Field(..., description="Mapping PME-XX → niveau (0-3)")
+    sector: str = Field("autre")
+    include_nis2_detail: bool = Field(True, description="Inclure la conversion en scoring NIS 2 complet")
+
+
 class AWSAuditRequest(BaseModel):
     region: str = Field("eu-west-1", description="Région AWS à auditer")
     demo_mode: bool = Field(True, description="Mode démonstration sans credentials AWS")
@@ -212,6 +222,59 @@ def get_sector_profiles_list():
             for p in SECTOR_PROFILES.values()
         ]
     }
+
+
+@app.get("/api/sme/questions")
+def get_sme_questions():
+    """Retourne les 15 questions du mode PME en langage non-technique."""
+    return {"questions": get_sme_schema(), "total": len(SME_QUESTIONS)}
+
+
+@app.post("/api/sme/assess", status_code=200)
+def sme_assess(body: SMEAssessRequest):
+    """
+    Évalue une PME à partir des 15 questions simplifiées.
+
+    Retourne :
+    - Score PME simplifié (0-100) avec grade
+    - Points faibles et points forts
+    - Priorité d'action numéro 1
+    - Si include_nis2_detail : scoring NIS 2 complet via conversion automatique
+    """
+    valid_ids = {q.id for q in SME_QUESTIONS}
+    for qid, lvl in body.responses.items():
+        if qid not in valid_ids:
+            raise HTTPException(status_code=422, detail=f"Question inconnue : {qid}. Utilisez PME-01 à PME-15.")
+        if lvl not in (0, 1, 2, 3):
+            raise HTTPException(status_code=422, detail=f"Niveau invalide pour {qid} : {lvl}. Valeurs : 0, 1, 2, 3.")
+
+    if not body.responses:
+        raise HTTPException(status_code=422, detail="Aucune réponse fournie.")
+
+    # Score PME simplifié
+    sme_result = compute_sme_score(body.responses)
+    sme_result["org_name"] = html.escape(body.org_name.strip())
+    sme_result["sector"] = body.sector
+
+    result = {"sme_assessment": sme_result}
+
+    # Optionnel : scoring NIS 2 complet
+    if body.include_nis2_detail:
+        nis2_responses = sme_responses_to_nis2(body.responses)
+        domains = load_framework()
+        sector_id = body.sector if body.sector in SECTOR_PROFILES else "autre"
+        apply_sector_weights(domains, sector_id)
+        for domain in domains:
+            for req in domain.sub_requirements:
+                if req.id in nis2_responses:
+                    req.maturity = MaturityLevel(nis2_responses[req.id])
+        engine = ScoringEngine()
+        analysis = engine.full_analysis(domains, html.escape(body.org_name.strip()))
+        analysis["sector_report"] = get_sector_report(sector_id, analysis)
+        result["nis2_detail"] = analysis
+        result["nis2_responses_inferred"] = nis2_responses
+
+    return result
 
 
 @app.get("/api/supply-chain/questions")
